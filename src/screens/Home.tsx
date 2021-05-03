@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   View,
   ImageBackground,
 } from 'react-native';
@@ -14,34 +13,123 @@ import {
 } from 'react-native-responsive-screen';
 
 import { Layout, Text } from '@ui-kitten/components';
-import TeamSpirit from '../assets/team-spirit.svg';
 
-import Happy from '../assets/expressions/happy.svg';
-import Neutral from '../assets/expressions/neutral.svg';
-import Cry from '../assets/expressions/cry.svg';
 import { CustomTopNavigation } from '../components/CustomTopNavigation';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { iGameReducer } from '../store/reducers';
-import { gameStarted } from '../store/actions/game';
+import {
+  correctAnswer,
+  gameReseted,
+  gameStarted,
+  gameUpdated,
+  winTheGame,
+  wrongAnswer,
+} from '../store/actions/game';
+import { shuffle } from '../helpers/shuffleArray';
+import {
+  animalImagesList,
+  animals,
+  animalsNamesList,
+} from '../helpers/animalImage';
 
 interface HomeProps {
   navigation: any;
 }
 
-const image = { uri: 'https://reactjs.org/logo-og.png' };
+const renderPickAnimal = (
+  level: number,
+  animalName: string,
+  answerStatus: number,
+  dispatch: any,
+) => {
+  let numOfAns = 0;
 
-export const HomeScreen: React.FunctionComponent = ({ navigation }) => {
+  if (level === 1) {
+    numOfAns = 2;
+  } else if (level === 2) {
+    numOfAns = 3;
+  } else if (level === 3) {
+    numOfAns = 4;
+  } else if (level === 4) {
+    numOfAns = 6;
+  } else if (level === 5) {
+    numOfAns = 8;
+  }
+
+  let render = [];
+
+  let animalsPictureList = animals;
+  let pickedAnimalIndex = animalsNamesList.indexOf(animalName);
+
+  if (pickedAnimalIndex !== -1) {
+    animalsPictureList.splice(pickedAnimalIndex, 1);
+  }
+
+  animalsPictureList = shuffle(animalsPictureList);
+
+  for (let index = 0; index < numOfAns - 1; index++) {
+    render.push(
+      <TouchableOpacity
+        style={styles.animalCard}
+        onPress={() => {
+          dispatch(wrongAnswer());
+        }}
+        key={index}>
+        <ImageBackground
+          source={animalsPictureList[index]}
+          style={styles.animalCover}
+        />
+      </TouchableOpacity>,
+    );
+  }
+
+  render.push(
+    <TouchableOpacity
+      style={styles.animalCard}
+      onPress={() => {
+        dispatch(correctAnswer());
+        dispatch(gameUpdated());
+      }}
+      key={pickedAnimalIndex}>
+      <ImageBackground
+        source={animalImagesList[animalName]}
+        style={styles.animalCover}
+      />
+    </TouchableOpacity>,
+  );
+
+  render = shuffle(render);
+
+  return render;
+};
+
+export const HomeScreen: React.FC<HomeProps> = () => {
   const dispatch = useDispatch();
 
-  const { hasStarted, animalName } = useSelector(
+  const {
+    hasStarted,
+    animalName,
+    level,
+    answerStatus,
+    wonTheGame,
+  } = useSelector(
     (state: { game: iGameReducer }) => ({
       hasStarted: state.game.hasStarted,
       level: state.game.level,
       answerStatus: state.game.answerStatus,
       animalName: state.game.question?.animalName,
+      wonTheGame: state.game.wonTheGame,
     }),
     shallowEqual,
   );
+
+  useEffect(() => {
+    if (level > 5 && !wonTheGame) {
+      dispatch(winTheGame());
+    } else if (level < 5 && wonTheGame === true) {
+      dispatch(gameReseted());
+    }
+  });
 
   return (
     <Layout style={{ flex: 1 }}>
@@ -49,27 +137,37 @@ export const HomeScreen: React.FunctionComponent = ({ navigation }) => {
         <CustomTopNavigation />
 
         {hasStarted ? (
-          <>
-            <View style={styles.textContainer}>
+          wonTheGame ? (
+            <View
+              style={[
+                styles.textContainer,
+                {
+                  height: hp('50%'),
+                },
+              ]}>
               <Text style={styles.text} category="h3">
-                Find the {animalName}
+                🥳 Congratulations 🎉
+              </Text>
+
+              <Text style={styles.text} category="h5">
+                Reset the game to play again
               </Text>
             </View>
+          ) : (
+            animalName && (
+              <>
+                <View style={styles.textContainer}>
+                  <Text style={styles.text} category="h3">
+                    Find the {animalName}
+                  </Text>
+                </View>
 
-            <View style={styles.animalsContainer}>
-              <TouchableOpacity style={styles.animalCard} onPress={() => {}}>
-                <ImageBackground
-                  source={image}
-                  style={{
-                    flex: 1,
-                    resizeMode: 'cover',
-                    justifyContent: 'center',
-                  }}>
-                  <Text style={styles.text}>Inside</Text>
-                </ImageBackground>
-              </TouchableOpacity>
-            </View>
-          </>
+                <View style={styles.animalsContainer}>
+                  {renderPickAnimal(level, animalName, answerStatus, dispatch)}
+                </View>
+              </>
+            )
+          )
         ) : (
           <>
             <View style={styles.textContainer}>
@@ -136,6 +234,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     flexWrap: 'wrap',
+  },
+  animalCover: {
+    flex: 1,
+    resizeMode: 'cover',
+    justifyContent: 'center',
   },
   animalCard: {
     backgroundColor: '#fff',

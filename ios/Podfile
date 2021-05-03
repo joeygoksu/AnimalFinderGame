@@ -12,6 +12,8 @@ target 'AnimalFinder' do
     :hermes_enabled => false
   )
 
+  pod 'TextToSpeech', :path => '../node_modules/react-native-tts'
+
   target 'AnimalFinderTests' do
     inherit! :complete
     # Pods for testing

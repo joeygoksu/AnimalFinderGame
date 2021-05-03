@@ -1,9 +1,13 @@
+import Tts from 'react-native-tts';
 import { randomEnum } from '../../helpers/randomEnum';
 import {
   GAME_RESETED,
   GAME_STARTED,
   LEVEL_UP,
   CORRECT_ANSWER,
+  WRONG_ANSWER,
+  WON_GAME,
+  GAME_UPDATED,
 } from '../constants';
 
 export interface iGameReducer {
@@ -11,9 +15,10 @@ export interface iGameReducer {
   level: number;
   answerStatus: number;
   question?: iQuestion;
+  wonTheGame: boolean;
 }
 
-enum iAnimal {
+export enum iAnimal {
   ant = 'ant',
   bird = 'bird',
   cat = 'cat',
@@ -44,21 +49,40 @@ const initialState: iGameReducer = {
   hasStarted: false,
   level: 1,
   answerStatus: 0,
+  wonTheGame: false,
 };
+
+Tts.setDefaultRate(0.25);
 
 export const gameReducer = (state = initialState, action) => {
   switch (action.type) {
     case GAME_STARTED:
+      const pickAnimal = randomEnum(iAnimal);
+
+      Tts.speak(`Find the ${pickAnimal}`);
+
       return {
         ...state,
         hasStarted: true,
         level: 1,
         answerStatus: 0,
         question: {
-          animalName: randomEnum(iAnimal),
+          animalName: pickAnimal,
+        },
+      };
+    case GAME_UPDATED:
+      const pickAnimal2 = randomEnum(iAnimal);
+
+      Tts.speak(`Find the ${pickAnimal2}`);
+
+      return {
+        ...state,
+        question: {
+          animalName: pickAnimal2,
         },
       };
     case GAME_RESETED:
+    case WRONG_ANSWER:
       return {
         ...state,
         hasStarted: false,
@@ -68,13 +92,27 @@ export const gameReducer = (state = initialState, action) => {
     case LEVEL_UP:
       return {
         ...state,
-        level: action.payload.level + 1,
+        level: state.level + 1,
         answerStatus: 0,
       };
-    case CORRECT_ANSWER:
+    case WON_GAME:
       return {
         ...state,
-        answerStatus: action.payload.answerStatus + 1,
+        wonTheGame: true,
+      };
+    case CORRECT_ANSWER:
+      // LEVEL_UP
+      if (state.answerStatus >= 2 && state.answerStatus < 5) {
+        return {
+          ...state,
+          level: state.level + 1,
+          answerStatus: 0,
+        };
+      }
+
+      return {
+        ...state,
+        answerStatus: state.answerStatus + 1,
       };
     default:
       return state;
